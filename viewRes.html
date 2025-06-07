@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fail Case Table</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      margin-bottom: 10px;
+      font-family: monospace;
+    }
+    #fileInput {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      text-align: left;
+      vertical-align: top;
+      word-wrap: break-word;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    td a {
+      color: blue;
+      word-break: break-all;
+    }
+    ul {
+      padding-left: 20px;
+      margin: 0;
+    }
+    ul li {
+      margin-bottom: 6px;
+    }
+    #chartContainer {
+      max-width: 320px;
+      margin: 20px auto;
+      text-align: center;
+    }
+    #failPieChart {
+      width: 100%;
+      max-height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <h2>输入 JSON 数据</h2>
+  <textarea id="inputArea" placeholder='粘贴 JSON 数组'></textarea><br>
+  <input type="file" id="fileInput">
+  <button onclick="loadFileContent()">加载文件并渲染</button>
+  <button onclick="renderTable()">渲染表格</button>
+
+  <h2>结果表格</h2>
+  <table id="resultTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <!-- 饼图容器 -->
+  <div id="chartContainer">
+    <canvas id="failPieChart"></canvas>
+  </div>
+
+  <!-- 引入 Chart.js 库 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    function escapeHTML(str) {
+      return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+
+    function loadFileContent() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("请先选择一个文件。支持 JSON 格式文件。");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('inputArea').value = e.target.result;
+        renderTable();
+      };
+      reader.readAsText(file);
+    }
+
+    function renderTable() {
+      const input = document.getElementById('inputArea').value.trim();
+      let data;
+      try {
+        data = JSON.parse(input);
+      } catch (e) {
+        alert("请输入合法 JSON 格式\n" + e.message);
+        return;
+      }
+      if (!Array.isArray(data)) data = [data];
+
+      data.sort((a, b) => {
+        const statusA = a.status ?? Infinity;
+        const statusB = b.status ?? Infinity;
+        const failTypeA = a.fail_type ?? Infinity;
+        const failTypeB = b.fail_type ?? Infinity;
+        if (statusA !== statusB) return statusA - statusB;
+        return failTypeA - failTypeB;
+      });
+
+      const tableHead = document.getElementById('tableHead');
+      const tableBody = document.getElementById('tableBody');
+      tableHead.innerHTML = '';
+      tableBody.innerHTML = '';
+
+      const keys = Object.keys(data[0]);
+      const headRow = document.createElement('tr');
+      keys.forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = key;
+        headRow.appendChild(th);
+      });
+      tableHead.appendChild(headRow);
+
+      const failTypeCounts = {};
+
+      data.forEach(item => {
+        const row = document.createElement('tr');
+        keys.forEach(key => {
+          const td = document.createElement('td');
+          if (key === 'fail_case_list' && Array.isArray(item[key])) {
+            const ul = document.createElement('ul');
+            item[key].forEach(sub => {
+              const li = document.createElement('li');
+              li.textContent = sub;
+              ul.appendChild(li);
+            });
+            td.appendChild(ul);
+          } else if ((key === 'report_link' || key === 'case_link') && typeof item[key] === 'string') {
+            const a = document.createElement('a');
+            a.href = item[key].replace("Test Case Link: ", "");
+            a.target = "_blank";
+            a.textContent = a.href;
+            td.appendChild(a);
+          } else {
+            td.textContent = item[key];
+          }
+          row.appendChild(td);
+        });
+        tableBody.appendChild(row);
+
+        const failType = item.fail_type;
+        if (failType != null) {
+          failTypeCounts[failType] = (failTypeCounts[failType] || 0) + 1;
+        }
+      });
+
+      const ctx = document.getElementById('failPieChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(failTypeCounts),
+          datasets: [{
+            label: '失败类型占比',
+            data: Object.values(failTypeCounts),
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.6)',
+              'rgba(54, 162, 235, 0.6)',
+              'rgba(255, 206, 86, 0.6)',
+              'rgba(75, 192, 192, 0.6)',
+              'rgba(153, 102, 255, 0.6)',
+              'rgba(255, 159, 64, 0.6)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: '根据失败码聚类',
+              padding: {
+                top: 10,
+                bottom: 10
+              },
+              font: {
+                size: 16
+              }
+            },
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 10,
+                boxWidth: 12
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

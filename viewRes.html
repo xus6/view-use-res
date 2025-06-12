@@ -78,6 +78,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
+    let chartInstance = null;
+  
     function escapeHTML(str) {
       return str.replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
@@ -85,7 +87,7 @@
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
     }
-
+  
     function loadFileContent() {
       const fileInput = document.getElementById('fileInput');
       const file = fileInput.files[0];
@@ -100,7 +102,7 @@
       };
       reader.readAsText(file);
     }
-
+  
     function renderTable() {
       const input = document.getElementById('inputArea').value.trim();
       let data;
@@ -111,7 +113,7 @@
         return;
       }
       if (!Array.isArray(data)) data = [data];
-
+  
       data.sort((a, b) => {
         const statusA = a.status ?? Infinity;
         const statusB = b.status ?? Infinity;
@@ -120,28 +122,27 @@
         if (statusA !== statusB) return statusA - statusB;
         return failTypeA - failTypeB;
       });
-
+  
       const tableHead = document.getElementById('tableHead');
       const tableBody = document.getElementById('tableBody');
       tableHead.innerHTML = '';
       tableBody.innerHTML = '';
-
+  
       let keys = [];
-const seen = new Set();
-data.forEach(row => {
-  Object.keys(row).forEach(key => {
-    if (!seen.has(key)) {
-      seen.add(key);
-      keys.push(key);
-    }
-  });
-});
-const showFailCase = document.getElementById('toggleFailCase')?.checked;
-keys = keys.filter(k => k !== 'fail_case_list');
-if (showFailCase) {
-  keys.push('fail_case_list');
-}
-
+      const seen = new Set();
+      data.forEach(row => {
+        Object.keys(row).forEach(key => {
+          if (!seen.has(key)) {
+            seen.add(key);
+            keys.push(key);
+          }
+        });
+      });
+  
+      const showFailCase = document.getElementById('toggleFailCase')?.checked;
+      keys = keys.filter(k => k !== 'fail_case_list');
+      if (showFailCase) keys.push('fail_case_list');
+  
       const headRow = document.createElement('tr');
       keys.forEach(key => {
         const th = document.createElement('th');
@@ -149,13 +150,15 @@ if (showFailCase) {
         headRow.appendChild(th);
       });
       tableHead.appendChild(headRow);
-
+  
       const failTypeCounts = {};
-
+  
       data.forEach(item => {
         const row = document.createElement('tr');
+  
         keys.forEach(key => {
           const td = document.createElement('td');
+  
           if (key === 'fail_case_list' && Array.isArray(item[key])) {
             const ul = document.createElement('ul');
             item[key].forEach(sub => {
@@ -164,28 +167,51 @@ if (showFailCase) {
               ul.appendChild(li);
             });
             td.appendChild(ul);
+  
+          } else if (key === 'image_urls' && Array.isArray(item[key])) {
+            item[key].forEach(url => {
+              const img = document.createElement('img');
+              img.src = url;
+              img.style.width = "100px";
+              img.style.marginRight = "4px";
+              img.alt = "image";
+              td.appendChild(img);
+            });
+  
           } else if ((key === 'report_link' || key === 'case_link') && typeof item[key] === 'string') {
-                const rawLink = item[key].replace("Test Case Link: ", "").trim();
-                const a = document.createElement('a');
-                a.href = rawLink;
-                a.target = "_blank";
-                a.textContent = rawLink;  // ✅ 使用原始链接字符串作为显示文本
-                td.appendChild(a);
-                } else {
+            const rawUrl = item[key].replace("Test Case Link: ", "").trim();
+            const urlPrefix = rawUrl.split("nodeId=")[0];
+            const failNodeId = (item['fail_node'] ?? "").split('_').pop();
+            const finalUrl = urlPrefix + "nodeId=" + failNodeId;
+  
+            const a = document.createElement('a');
+            a.href = finalUrl;
+            a.target = "_blank";
+            a.textContent = finalUrl;
+            td.appendChild(a);
+  
+          } else {
             td.textContent = item[key];
           }
+  
           row.appendChild(td);
         });
+  
         tableBody.appendChild(row);
-
+  
         const failType = item.fail_type;
         if (failType != null) {
           failTypeCounts[failType] = (failTypeCounts[failType] || 0) + 1;
         }
       });
-
+  
+      // 重新绘图前销毁旧图
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+  
       const ctx = document.getElementById('failPieChart').getContext('2d');
-      new Chart(ctx, {
+      chartInstance = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: Object.keys(failTypeCounts),
@@ -209,25 +235,18 @@ if (showFailCase) {
             title: {
               display: true,
               text: '根据失败码聚类',
-              padding: {
-                top: 10,
-                bottom: 10
-              },
-              font: {
-                size: 16
-              }
+              padding: { top: 10, bottom: 10 },
+              font: { size: 16 }
             },
             legend: {
               position: 'bottom',
-              labels: {
-                padding: 10,
-                boxWidth: 12
-              }
+              labels: { padding: 10, boxWidth: 12 }
             }
           }
         }
       });
     }
   </script>
+  
 </body>
 </html>

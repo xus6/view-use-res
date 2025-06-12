@@ -64,6 +64,7 @@
 
   <h2>结果表格</h2>
   <label><input type="checkbox" id="toggleFailCase" onchange="renderTable()"> 展示 fail_case_list</label>
+  <label><input type="checkbox" id="toggleIdFields" onchange="renderTable()"> 展示 reportId 和 caseId</label>
   <table id="resultTable">
     <thead id="tableHead"></thead>
     <tbody id="tableBody"></tbody>
@@ -140,8 +141,17 @@
       });
   
       const showFailCase = document.getElementById('toggleFailCase')?.checked;
-      keys = keys.filter(k => k !== 'fail_case_list');
-      if (showFailCase) keys.push('fail_case_list');
+const showIdFields = document.getElementById('toggleIdFields')?.checked;
+
+// 移除特定字段（先去掉）
+keys = keys.filter(k => !['fail_case_list', 'reportId', 'caseId','fail_node'].includes(k));
+
+// 有选择时再添加回去
+if (showFailCase) keys.push('fail_case_list');
+if (showIdFields) {
+  if (data.some(d => 'reportId' in d)) keys.push('reportId');
+  if (data.some(d => 'caseId' in d)) keys.push('caseId');
+}   
   
       const headRow = document.createElement('tr');
       keys.forEach(key => {

@@ -220,41 +220,55 @@ if (showIdFields) {
         chartInstance.destroy();
       }
   
-      const ctx = document.getElementById('failPieChart').getContext('2d');
-      chartInstance = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: Object.keys(failTypeCounts),
-          datasets: [{
-            label: '失败类型占比',
-            data: Object.values(failTypeCounts),
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)',
-              'rgba(255, 159, 64, 0.6)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: '根据失败码聚类',
-              padding: { top: 10, bottom: 10 },
-              font: { size: 16 }
-            },
-            legend: {
-              position: 'bottom',
-              labels: { padding: 10, boxWidth: 12 }
-            }
-          }
-        }
-      });
+      const failTypeDesc = {
+  '8016': "insert vid fail",
+  '8001': "[use]expected step assertion fail",
+  '8007': "[use]ts fail, could not find",
+  '8035': "pre_test unexpectedly raised",
+  '7200': "app_crash"
+};
+
+const chartLabels = Object.keys(failTypeCounts).map(code => {
+  const desc = failTypeDesc[code] || "unknown";
+  return `${code}: ${desc}`;
+});
+
+const ctx = document.getElementById('failPieChart').getContext('2d');
+chartInstance = new Chart(ctx, {
+  type: 'pie',
+  data: {
+    labels: chartLabels,
+    datasets: [{
+      label: '失败类型占比',
+      data: Object.values(failTypeCounts),
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)'
+      ],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Fail case reason vs count',
+        padding: { top: 10, bottom: 10 },
+        font: { size: 16 }
+      },
+      legend: {
+        position: 'bottom',
+        labels: { padding: 10, boxWidth: 12 }
+      }
+    }
+  }
+});
+
     }
   </script>
   
